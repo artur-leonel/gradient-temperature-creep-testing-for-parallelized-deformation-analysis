@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: "DELTA-T gradient creep analysis pipeline"
+message: "Cite using the metadata below."
+type: software
+authors:
+  - family-names: "Ullmann"
+    given-names: "Artur L. M."
+license: MIT
+repository-code: "https://github.com/artur-leonel/NCOMMS-25-44053A"
+abstract: "Python workflow for ASTM-oriented processing of gradient-temperature creep DIC data and manuscript figure generation."
+keywords:
+  - creep
+  - digital-image-correlation
+  - materials-testing

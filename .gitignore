@@ -1,0 +1,10 @@
+﻿__pycache__/
+*.py[cod]
+.venv/
+venv/
+# Local secrets — never commit
+.env
+.env.local
+*.egg-info/
+.pytest_cache/
+.DS_Store
