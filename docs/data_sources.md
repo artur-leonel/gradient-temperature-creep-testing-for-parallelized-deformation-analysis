@@ -77,9 +77,9 @@ Manual Arrhenius: `Q_manual ≈ 333.3 kJ/mol` from 24 valid manual curves (25 ca
 ## Outputs at run time
 
 - Figures: `images/` (`.svg`)
-- Tables: `results/` (`.xlsx`), plus `results/Source_Data.xlsx` and `results/source_data/*.npz` after export
+- Tables: `results/workflow_exports/` (intermediate `.xlsx`); journal bundle `results/published/` (`Source_Data.xlsx`, `creep_curves_data.xlsx`, `all_delta_t_strain_full.npz`) — see `results/README.md`
 
-No bundled `data/processed/` tree; intermediates go to `results/`. Path roots are set in `src/config.py`.
+No bundled `data/processed/` tree. Output subfolders are defined in `src/pipeline/constants.py` (`RESULTS_PUBLISHED_DIR`, `RESULTS_WORKFLOW_EXPORTS_DIR`). `src/config.py` holds project-root discovery for other tooling.
 
 <div style="page-break-after: always;"></div>
 

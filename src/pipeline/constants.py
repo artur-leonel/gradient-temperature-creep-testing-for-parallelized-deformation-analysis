@@ -43,9 +43,18 @@ MANUAL_EXTRACTIONS = {
 # Reported CCT activation-energy fit in the paper excludes 525C.
 CCT_REPORTED_FIT_TEMPS = (550, 575, 600)
 
+# --- Results layout (see results/README.md) ---
+# Journal-facing bundle: cite these paths in Data Availability / Source Data.
+RESULTS_PUBLISHED_DIR = "results/published"
+SOURCE_DATA_XLSX_NAME = "Source_Data.xlsx"
+CREEP_CURVES_XLSX_NAME = "creep_curves_data.xlsx"
+STRAIN_NPZ_FILENAME = "all_delta_t_strain_full.npz"
+# Intermediate spreadsheets (Arrhenius tables, COV, activation-energy sweep, etc.).
+RESULTS_WORKFLOW_EXPORTS_DIR = "results/workflow_exports"
+
 # Arrhenius / spatial figures and Source_Data arrh_buf_* / spatial_pts_* (workflow uses this tuple).
 SOURCE_DATA_EDGE_BUFFERS = (0, 1, 5, 10, 15, 22, 23, 24, 25)
 
 # If False, Source_Data.xlsx does not duplicate creep isotherm sheets (creep22_*); those stay
-# only in results/creep_curves_data.xlsx — smaller journal bundle, same numbers.
+# only in results/published/creep_curves_data.xlsx — smaller journal bundle, same numbers.
 SOURCE_DATA_EMBED_CREEP_ISOTHERMS = True

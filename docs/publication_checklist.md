@@ -7,7 +7,7 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 - [x] **Root:** `README.md`, `LICENSE`, `CITATION.cff`, `requirements.txt`, `requirements-lock.txt`, `python_workflow.py`, `.gitignore`
 - [x] **Code:** `src/` for the analysis pipeline; `scripts/` for smoke test, figure-mapping helper, SVG compare
 - [ ] **Inputs:** `data/raw/` lists only runtime-required paths in [`data_sources.md`](data_sources.md). *(Optional: ship a trimmed `main.xlsx` without unused sheets for a smaller deposit.)*
-- [x] **Outputs:** `results/` and `images/` present for full runs; [`manuscript_figure_mapping.md`](manuscript_figure_mapping.md) tracks DOCX ↔ outputs *(re-run `python scripts/build_nature_docs.py` after manuscript renumbering).*
+- [x] **Outputs:** `results/published/`, `results/workflow_exports/`, and `images/` populated after a full run; [`manuscript_figure_mapping.md`](manuscript_figure_mapping.md) tracks DOCX ↔ outputs *(re-run `python scripts/build_nature_docs.py` after manuscript renumbering).*
 
 ## Metadata and legal
 
@@ -16,8 +16,8 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 
 ## Data bundle for readers
 
-- [x] **`Source_Data.xlsx`:** built after `python -m src.main run`; optional slimming via `SOURCE_DATA_EMBED_CREEP_ISOTHERMS` in `src/pipeline/constants.py` — see [`data_provenance.md`](data_provenance.md).
-- [x] **NPZ:** `results/source_data/all_delta_t_strain_full.npz` documented in provenance / README.
+- [x] **`results/published/Source_Data.xlsx`:** built after `python -m src.main run`; optional slimming via `SOURCE_DATA_EMBED_CREEP_ISOTHERMS` in `src/pipeline/constants.py` — see [`data_provenance.md`](data_provenance.md).
+- [x] **NPZ:** `results/published/all_delta_t_strain_full.npz` documented in provenance / README.
 - [ ] **Manuscript:** Data Availability and Code Availability text matches repository URLs and DOIs when deposits are final.
 
 ## Technical verification
@@ -37,7 +37,8 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 
 | Check | Result | Date |
 |--------|--------|------|
-| Orphan `results/arrhenius_buffer_20_*` removed (not produced by current buffer list) | Done | 2026-03-30 |
+| Orphan `results/arrhenius_buffer_20_*` removed (historical flat layout) | Done | 2026-03-30 |
+| Results split: `results/published/` vs `results/workflow_exports/` | Done | 2026-03-31 |
 | `workflow.main()` uses `SOURCE_DATA_EDGE_BUFFERS` from `constants.py` | Done | 2026-03-30 |
 | `.gitignore` extended (`data/processed/`, `Thumbs.db`, `*.tmp`, `*.log`) | Done | 2026-03-30 |
 | `src/` grep: no hardcoded secrets / user profile paths | Done | 2026-03-30 |

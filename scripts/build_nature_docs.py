@@ -72,8 +72,8 @@ def main() -> int:
         [
             "## Source data bundle",
             "",
-            "After `python -m src.main run`: `results/Source_Data.xlsx`, `results/source_data/all_delta_t_strain_full.npz`,",
-            "and per-step tables under `results/` (see `docs/data_provenance.md`).",
+            "After `python -m src.main run`: `results/published/Source_Data.xlsx`,",
+            "`results/published/all_delta_t_strain_full.npz`, and `results/workflow_exports/` (see `results/README.md`, `docs/data_provenance.md`).",
             "",
         ]
     )

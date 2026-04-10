@@ -5,12 +5,19 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 
-from src.pipeline.constants import ANALYSIS_END, WORKBOOK_PATH
+from src.pipeline.constants import (
+    ANALYSIS_END,
+    RESULTS_PUBLISHED_DIR,
+    RESULTS_WORKFLOW_EXPORTS_DIR,
+    WORKBOOK_PATH,
+)
 
 
 def ensure_output_dirs() -> None:
     os.makedirs("images", exist_ok=True)
     os.makedirs("results", exist_ok=True)
+    os.makedirs(RESULTS_PUBLISHED_DIR, exist_ok=True)
+    os.makedirs(RESULTS_WORKFLOW_EXPORTS_DIR, exist_ok=True)
 
 
 def load_core_arrays():

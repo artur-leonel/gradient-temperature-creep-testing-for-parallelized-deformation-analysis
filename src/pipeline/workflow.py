@@ -11,11 +11,14 @@ from src.pipeline.constants import (
     ANALYSIS_START,
     ASTM_TEMP_TOL,
     CCT_REPORTED_FIT_TEMPS,
+    CREEP_CURVES_XLSX_NAME,
     GAS_CONSTANT_J_PER_MOLK,
     GROUP_STEP,
     INITIAL_TEMP_THRESHOLD,
     ISOTHERM_HIGH,
     ISOTHERM_LOW,
+    RESULTS_PUBLISHED_DIR,
+    RESULTS_WORKFLOW_EXPORTS_DIR,
     SCALING_FACTOR,
     SOURCE_DATA_EDGE_BUFFERS,
     WORKBOOK_PATH,
@@ -284,11 +287,15 @@ def compute_activation_energy_for_edge_buffer(edge_buffer):
 
     return {'deltaT (python)': activation_energy_deltaT, 'cct': activation_energy_CCT}
 
-def calculate_activation_energy(edge_buffer=22, save_path='results/activation_energy_calculations.xlsx'):
+def calculate_activation_energy(edge_buffer=22, save_path: str | None = None):
     """
     Calculate activation energies for the delta-T tests and CCT data.
-    Results are saved to an Excel file.
+    Results are saved to an Excel file under ``results/workflow_exports/`` by default.
     """
+    if save_path is None:
+        save_path = os.path.join(
+            RESULTS_WORKFLOW_EXPORTS_DIR, "activation_energy_calculations.xlsx"
+        )
     res = run_analysis(edge_buffer)
     if not res:
         print("No valid data available for activation energy calculation.")
@@ -643,7 +650,7 @@ def plot_cov_vs_temperature(edge_buffer=22, save_fig=True, display=False):
     ax.set_ylabel(r'Coefficient of Variation, COV (\%)')
     ax.set_xlim(min(group_centers) - GROUP_STEP / 2, max(group_centers) + GROUP_STEP / 2)
     ax.set_ylim(0, max(group_cov) * 1.2)
-    ax.text(0.02, 0.95, f'Temperature groups: center Â± {ASTM_TEMP_TOL}Â°C', transform=ax.transAxes,
+    ax.text(0.02, 0.95, f'Temperature groups: center +/- {ASTM_TEMP_TOL} C', transform=ax.transAxes,
             bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray'), ha='left', va='top')
     plt.tight_layout()
     if save_fig:
@@ -1192,8 +1199,10 @@ def plot_all_delta_t_creep_curves(save_fig=True, display=False):
     else:
         plt.close(fig)
 
-def save_arrhenius_data(edge_buffers, save_path='results/'):
+def save_arrhenius_data(edge_buffers, save_path: str | None = None):
     """Save Arrhenius data for each specified edge buffer to Excel files."""
+    if save_path is None:
+        save_path = RESULTS_WORKFLOW_EXPORTS_DIR
     for eb in edge_buffers:
         res = run_analysis(eb)
         if not res:
@@ -1205,13 +1214,15 @@ def save_arrhenius_data(edge_buffers, save_path='results/'):
             'ln_MCSR': res['ln_MCSR'],
             'MCSR': res['MCSR']
         })
-        df_all.to_excel(f'{save_path}/arrhenius_buffer_{eb}_all_data.xlsx', index=False)
+        df_all.to_excel(
+            os.path.join(save_path, f"arrhenius_buffer_{eb}_all_data.xlsx"), index=False
+        )
         group_dfs = []
         for center in np.arange(ISOTHERM_LOW, res['temp_init'].max() + GROUP_STEP, GROUP_STEP):
             idx = np.where(np.abs(res['temp_init'] - center) <= ASTM_TEMP_TOL)[0]
             if len(idx) >= 5:
                 df_group = pd.DataFrame({
-                    'Temperature_Group_C': [f"{center:.0f}Â±{ASTM_TEMP_TOL:.1f}"] * len(idx),
+                    'Temperature_Group_C': [f"{center:.0f}+/-{ASTM_TEMP_TOL:.1f}"] * len(idx),
                     'Initial_Temperature_C': res['temp_init'][idx],
                     'Inverse_Temperature_K-1': res['inv_T'][idx],
                     'ln_MCSR': res['ln_MCSR'][idx],
@@ -1219,11 +1230,16 @@ def save_arrhenius_data(edge_buffers, save_path='results/'):
                 })
                 group_dfs.append(df_group)
         if group_dfs:
-            pd.concat(group_dfs, ignore_index=True).to_excel(f'{save_path}/arrhenius_buffer_{eb}_grouped_data.xlsx', index=False)
+            pd.concat(group_dfs, ignore_index=True).to_excel(
+                os.path.join(save_path, f"arrhenius_buffer_{eb}_grouped_data.xlsx"),
+                index=False,
+            )
     print(f"Arrhenius data saved to {save_path}")
 
-def save_cov_data(edge_buffer=22, save_path='results/'):
+def save_cov_data(edge_buffer=22, save_path: str | None = None):
     """Save COV vs temperature data to Excel."""
+    if save_path is None:
+        save_path = RESULTS_WORKFLOW_EXPORTS_DIR
     res = run_analysis(edge_buffer)
     if not res:
         print(f"No valid data for edge_buffer={edge_buffer} to save.")
@@ -1235,25 +1251,31 @@ def save_cov_data(edge_buffer=22, save_path='results/'):
         if len(idx) >= 5:
             cov = np.std(MCSR_vals[idx]) / np.mean(MCSR_vals[idx])
             summary.append({
-                'Temperature_Group_C': f"{center:.0f}Â±{ASTM_TEMP_TOL:.1f}",
+                'Temperature_Group_C': f"{center:.0f}+/-{ASTM_TEMP_TOL:.1f}",
                 'Count': len(idx),
                 'Mean_MCSR': np.mean(MCSR_vals[idx]),
                 'Std_MCSR': np.std(MCSR_vals[idx]),
                 'COV': cov
             })
             details.append(pd.DataFrame({
-                'Temperature_Group_C': [f"{center:.0f}Â±{ASTM_TEMP_TOL:.1f}"] * len(idx),
+                'Temperature_Group_C': [f"{center:.0f}+/-{ASTM_TEMP_TOL:.1f}"] * len(idx),
                 'Initial_Temperature_C': temp_init[idx],
                 'MCSR': MCSR_vals[idx]
             }))
     if summary:
-        pd.DataFrame(summary).to_excel(f'{save_path}/cov_vs_temperature_summary.xlsx', index=False)
+        pd.DataFrame(summary).to_excel(
+            os.path.join(save_path, "cov_vs_temperature_summary.xlsx"), index=False
+        )
     if details:
-        pd.concat(details, ignore_index=True).to_excel(f'{save_path}/cov_vs_temperature_detailed.xlsx', index=False)
+        pd.concat(details, ignore_index=True).to_excel(
+            os.path.join(save_path, "cov_vs_temperature_detailed.xlsx"), index=False
+        )
     print(f"COV data saved to {save_path}")
 
-def save_activation_energy_data(max_buffer=24, save_path='results/'):
+def save_activation_energy_data(max_buffer=24, save_path: str | None = None):
     """Save activation energy vs edge buffer data to Excel."""
+    if save_path is None:
+        save_path = RESULTS_WORKFLOW_EXPORTS_DIR
     buf, energies, errors = [], [], []
     for eb in range(1, max_buffer + 1):
         res = run_analysis(eb)
@@ -1269,18 +1291,21 @@ def save_activation_energy_data(max_buffer=24, save_path='results/'):
         'Activation_Energy_kJ_mol': energies,
         'Error_kJ_mol': errors
     })
-    df.to_excel(f'{save_path}/activation_energy_vs_buffer.xlsx', index=False)
+    df.to_excel(os.path.join(save_path, "activation_energy_vs_buffer.xlsx"), index=False)
     print(f"Activation energy data saved to {save_path}")
 
-def save_creep_curves_data(edge_buffer=22, save_path='results/'):
-    """Save creep strain curves data to Excel."""
+def save_creep_curves_data(edge_buffer=22, save_path: str | None = None):
+    """Save creep strain curves data to Excel (journal-facing path under ``results/published/``)."""
+    if save_path is None:
+        save_path = RESULTS_PUBLISHED_DIR
     res = run_analysis(edge_buffer)
     if not res:
         print(f"No valid data for edge_buffer={edge_buffer} to save.")
         return
     creep_curves = res['creep_curves']
     temp_init = res['temp_init']
-    with pd.ExcelWriter(f'{save_path}/creep_curves_data.xlsx') as writer:
+    creep_xlsx = os.path.join(save_path, CREEP_CURVES_XLSX_NAME)
+    with pd.ExcelWriter(creep_xlsx) as writer:
         pd.DataFrame({
             'Parameter': ['Edge Buffer', 'Temperature Tolerance', 'Analysis Start Frame', 'Analysis End Frame', 'Total Curves'],
             'Value': [edge_buffer, ASTM_TEMP_TOL, ANALYSIS_START, ANALYSIS_END, len(creep_curves)]
@@ -1295,7 +1320,7 @@ def save_creep_curves_data(edge_buffer=22, save_path='results/'):
                     data_dict[f'Curve_{j+1}_Temp_{temp_init[i]:.1f}C'] = creep_curves[i][:min_length]
                 data_dict['Average_Curve'] = np.mean([creep_curves[i][:min_length] for i in idx], axis=0)
                 pd.DataFrame(data_dict).to_excel(writer, sheet_name=f'Temp_{center:.0f}C', index=False)
-    print(f"Creep curves data saved to {save_path}")
+    print(f"Creep curves data saved to {creep_xlsx}")
 
 def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False):
     """
@@ -2114,7 +2139,7 @@ def main():
     except Exception as e:
         print("Error in Spatial Stress Effects plot:", e)
     try:
-        calculate_activation_energy(edge_buffer=22, save_path='results/activation_energy_calculations.xlsx')
+        calculate_activation_energy(edge_buffer=22)
     except Exception as e:
         print("Error in activation energy calculation:", e)
     try:

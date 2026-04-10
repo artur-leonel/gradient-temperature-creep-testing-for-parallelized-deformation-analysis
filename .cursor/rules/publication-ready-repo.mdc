@@ -15,8 +15,8 @@ This project is a **journal-facing code and minimum-data bundle**. When editing 
 ## Layout and scope
 
 - **Code:** `src/` only for pipeline logic; `scripts/` for small utilities; one primary entry: `python -m src.main` (and optional `python_workflow.py`).
-- **Data:** `data/raw/` = minimum inputs to reproduce; `results/` = regenerated tables; `images/` = figure outputs. Do not add large ad-hoc binaries without documenting them in `docs/data_provenance.md` and `docs/data_sources.md`.
-- **Source data for the paper:** `results/Source_Data.xlsx` + `results/source_data/*.npz` — keep aligned with figure mapping (`docs/manuscript_figure_mapping.md`). Use `SOURCE_DATA_*` flags in `src/pipeline/constants.py` when trimming duplicates for deposit (see `docs/data_provenance.md`).
+- **Data:** `data/raw/` = minimum inputs; **`results/published/`** = journal bundle (`Source_Data.xlsx`, creep workbook, NPZ); **`results/workflow_exports/`** = intermediate Excel; `images/` = figures. Document new binaries in `docs/data_provenance.md` and `docs/data_sources.md`.
+- **Source data for the paper:** paths under `results/published/` — keep aligned with `docs/manuscript_figure_mapping.md`. Use `SOURCE_DATA_*` in `src/pipeline/constants.py` when trimming duplicates (see `docs/data_provenance.md`).
 
 ## Reproducibility
 

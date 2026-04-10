@@ -39,5 +39,5 @@ Modular layout: `src/` entrypoints call the same legacy analysis pipeline as bef
 ## Paths and reproducibility
 
 - Run the pipeline from the repository root (directory that contains `src/`).
-- Inputs are read under `data/raw/` via `src/config.py`.
+- Inputs are read under `data/raw/`. Generated tables go to **`results/workflow_exports/`**; the journal-facing bundle (**`results/published/`**) holds `Source_Data.xlsx`, creep isotherm workbook, and the strain NPZ — see `results/README.md` and `src/pipeline/constants.py`.
 - **Legacy fallback:** `plot_temperature_groups` in `workflow.py` can look for `main.xlsx` at `../Data (Excels)/new/main.xlsx` relative to the process current working directory if the canonical `data/raw/workbook/main.xlsx` is missing. For reproducible runs, keep the workbook at the canonical path and start from the repo root.

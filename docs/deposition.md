@@ -14,7 +14,7 @@ Optional: mirror on Code Ocean if required.
 
 ## Data (general repository)
 
-1. Package minimum inputs: `data/raw/dic_mat/*.mat`, `data/raw/workbook/main.xlsx`, and if applicable `results/Source_Data.xlsx`, `results/source_data/*.npz`.
+1. Package minimum inputs: `data/raw/dic_mat/*.mat`, `data/raw/workbook/main.xlsx`, and if applicable `results/published/Source_Data.xlsx`, `results/published/all_delta_t_strain_full.npz`, plus `results/workflow_exports/` if you archive intermediate tables.
 2. Upload through the chosen repository’s web interface (or its standard publisher workflow).
 3. After the dataset is public, add its DOI to Data Availability and references.
 
@@ -24,4 +24,4 @@ When DOIs/URLs change, update the manuscript and references in one pass so links
 
 ## Source Data workbook
 
-Journal Source Data uploads should match numbers in `results/Source_Data.xlsx` from `python -m src.main run`.
+Journal Source Data uploads should match numbers in `results/published/Source_Data.xlsx` from `python -m src.main run`.
