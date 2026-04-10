@@ -20,10 +20,10 @@ Modular layout: `src/` entrypoints call the same legacy analysis pipeline as bef
 
 <div style="page-break-after: always;"></div>
 
-## Execution Flow
+## Execution flow
 
 1. `python -m src.main run`  
-   Executes the legacy analysis workflow to regenerate figures and tables.
+   Executes the analysis workflow to regenerate figures and tables. Arrhenius and spatial plots use **`SOURCE_DATA_EDGE_BUFFERS`** from `constants.py` (same tuple as Source Data export).
 2. `python -m src.main verify-images`  
    Confirms `images/` has the expected number of SVG files for the paper outputs.
 

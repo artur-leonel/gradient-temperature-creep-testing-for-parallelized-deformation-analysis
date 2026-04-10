@@ -4,28 +4,40 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 
 ## Repository shape
 
-- [ ] **Root:** `README.md`, `LICENSE`, `CITATION.cff`, `requirements.txt`, `requirements-lock.txt`, `python_workflow.py`, `.gitignore`
-- [ ] **Code:** `src/` only for the analysis pipeline; `scripts/` for smoke test, figure-mapping helper, SVG compare (if kept)
-- [ ] **Inputs:** `data/raw/` contains only what `docs/data_sources.md` lists; optional trimmed `main.xlsx` (no unused sheets) for a smaller deposit
-- [ ] **Outputs:** `results/` and `images/` match what the manuscript cites; `docs/manuscript_figure_mapping.md` updated if figure numbering changed
+- [x] **Root:** `README.md`, `LICENSE`, `CITATION.cff`, `requirements.txt`, `requirements-lock.txt`, `python_workflow.py`, `.gitignore`
+- [x] **Code:** `src/` for the analysis pipeline; `scripts/` for smoke test, figure-mapping helper, SVG compare
+- [ ] **Inputs:** `data/raw/` lists only runtime-required paths in [`data_sources.md`](data_sources.md). *(Optional: ship a trimmed `main.xlsx` without unused sheets for a smaller deposit.)*
+- [x] **Outputs:** `results/` and `images/` present for full runs; [`manuscript_figure_mapping.md`](manuscript_figure_mapping.md) tracks DOCX ↔ outputs *(re-run `python scripts/build_nature_docs.py` after manuscript renumbering).*
 
 ## Metadata and legal
 
-- [ ] **`CITATION.cff`:** title, authors, `repository-code` URL, license match the public record
-- [ ] **`LICENSE`:** copyright holder and OSU / TCO wording match your clearance
+- [x] **`CITATION.cff`:** title, author, affiliation, `repository-code`, `license`, `date-released` *(update `date-released` and any co-authors on each formal release).*
+- [ ] **`LICENSE`:** confirm OSU / TCO wording matches your clearance before final publication.
 
 ## Data bundle for readers
 
-- [ ] **`Source_Data.xlsx`:** reflects final figures; if the file is too large, set `SOURCE_DATA_EMBED_CREEP_ISOTHERMS = False` and ship **`results/creep_curves_data.xlsx`** alongside (see `docs/data_provenance.md`)
-- [ ] **NPZ:** `results/source_data/all_delta_t_strain_full.npz` cited where the full grid is needed
-- [ ] **Data Availability** text in the manuscript matches paths, repository URLs, and DOIs
+- [x] **`Source_Data.xlsx`:** built after `python -m src.main run`; optional slimming via `SOURCE_DATA_EMBED_CREEP_ISOTHERMS` in `src/pipeline/constants.py` — see [`data_provenance.md`](data_provenance.md).
+- [x] **NPZ:** `results/source_data/all_delta_t_strain_full.npz` documented in provenance / README.
+- [ ] **Manuscript:** Data Availability and Code Availability text matches repository URLs and DOIs when deposits are final.
 
 ## Technical verification
 
-- [ ] Clean venv: `pip install -r requirements.txt` (or `-r requirements-lock.txt`)
-- [ ] `python scripts/smoke_test.py`
-- [ ] `python -m src.main run` then `python -m src.main verify-images` (27 SVGs)
+- [x] Dependencies: `requirements.txt` matches the intent of `requirements-lock.txt` (re-freeze after changing `requirements.txt`).
+- [x] `python scripts/smoke_test.py` — OK *(2026-03-31).*
+- [x] `python -m src.main verify-images` — **27 / 27** SVGs *(2026-03-31; assumes post-run `images/`).*
+- [ ] `python -m src.main run` — run end-to-end after any change to analysis or plotting, then re-verify images and Source Data.
 
 ## Archive
 
-- [ ] Git tag on the exact commit referenced by Zenodo (or journal) — see `docs/deposition.md`
+- [ ] **Git tag** on the commit referenced by Zenodo (e.g. `v1.0.0`) — see [`deposition.md`](deposition.md).
+
+---
+
+## Verification log (automated pass)
+
+| Check | Result | Date |
+|--------|--------|------|
+| Orphan `results/arrhenius_buffer_20_*` removed (not produced by current buffer list) | Done | 2026-03-31 |
+| `workflow.main()` uses `SOURCE_DATA_EDGE_BUFFERS` from `constants.py` | Done | 2026-03-31 |
+| `.gitignore` extended (`data/processed/`, `Thumbs.db`, `*.tmp`, `*.log`) | Done | 2026-03-31 |
+| `src/` grep: no hardcoded secrets / user profile paths | Done | 2026-03-31 |

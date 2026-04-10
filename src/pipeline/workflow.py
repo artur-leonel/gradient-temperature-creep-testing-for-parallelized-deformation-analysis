@@ -17,6 +17,7 @@ from src.pipeline.constants import (
     ISOTHERM_HIGH,
     ISOTHERM_LOW,
     SCALING_FACTOR,
+    SOURCE_DATA_EDGE_BUFFERS,
     WORKBOOK_PATH,
 )
 from src.pipeline.data_access import (
@@ -2078,7 +2079,7 @@ def main():
     print("Starting creep analysis and visualization...")
     # Load the CCT data once.
     cct_data = load_cct_data()
-    edge_buffers = [0, 1, 5, 10, 15, 22, 23, 24, 25]
+    edge_buffers = list(SOURCE_DATA_EDGE_BUFFERS)
     try:
         plot_arrhenius(edge_buffers, save_fig=True)
         save_arrhenius_data(edge_buffers)

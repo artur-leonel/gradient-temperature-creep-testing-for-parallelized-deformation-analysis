@@ -5,9 +5,11 @@ type: software
 authors:
   - family-names: "Ullmann"
     given-names: "Artur L. M."
+    affiliation: "The Ohio State University"
 license: MIT
 repository-code: "https://github.com/artur-leonel/NCOMMS-25-44053A"
 abstract: "Python workflow for ASTM-oriented processing of gradient-temperature creep DIC data and manuscript figure generation."
+date-released: "2026-03-31"
 keywords:
   - creep
   - digital-image-correlation

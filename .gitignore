@@ -8,3 +8,9 @@ venv/
 *.egg-info/
 .pytest_cache/
 .DS_Store
+Thumbs.db
+
+# Generated at runtime (not part of minimum clone layout)
+data/processed/
+*.tmp
+*.log
