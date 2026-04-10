@@ -1,6 +1,8 @@
 # DELTA-T creep analysis — code and minimum data
 
-Python workflow for gradient-temperature creep DIC data (ASTM-oriented filtering) and manuscript figures/tables.
+**Goal:** a **publication-ready** code + minimum-data repository: reproducible figures, documented inputs, and journal-style source data alongside the manuscript.
+
+Python workflow for gradient-temperature creep DIC data (ASTM-oriented filtering) and manuscript figures/tables. Before release, use [`docs/publication_checklist.md`](docs/publication_checklist.md).
 
 **Suggested folder name:** `delta-t-creep-code` (if this directory is still named `nature data and code`, rename it when nothing else has the folder open—OneDrive/Cursor can block renames on Windows.)
 
@@ -35,7 +37,7 @@ Checklist: [`docs/deposition.md`](docs/deposition.md). Citation file: [`CITATION
 
 ## Outputs (after `python -m src.main run`)
 
-- `results/Source_Data.xlsx` — tabular source data for figures.
+- `results/Source_Data.xlsx` — tabular source data for figures. Optional: set `SOURCE_DATA_EMBED_CREEP_ISOTHERMS = False` in `src/pipeline/constants.py` to avoid duplicating creep isotherm sheets here (they remain in `results/creep_curves_data.xlsx`). See `docs/data_provenance.md`.
 - `results/source_data/all_delta_t_strain_full.npz` — full strain array for the all-curves figure.
 - Other tables under `results/`; figures under `images/`.
 
@@ -59,6 +61,7 @@ Checklist: [`docs/deposition.md`](docs/deposition.md). Citation file: [`CITATION
 
 ## Documentation
 
+- [`docs/publication_checklist.md`](docs/publication_checklist.md) — pre-release / deposit checklist
 - [`docs/data_provenance.md`](docs/data_provenance.md)
 - [`docs/data_sources.md`](docs/data_sources.md)
 - [`docs/code_structure.md`](docs/code_structure.md)

@@ -1,6 +1,7 @@
 # Archiving code and data (DOIs)
 
-Checklist after Data Availability and Code Availability text exists in the manuscript. Insert **final** repository URLs and DOIs in the Word file and reference list.
+Repo-wide release steps: [`publication_checklist.md`](publication_checklist.md).  
+Use the items below after Data Availability and Code Availability text exists in the manuscript. Insert **final** repository URLs and DOIs in the Word file and reference list.
 
 ## Code (citable snapshot)
 

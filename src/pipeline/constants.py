@@ -42,3 +42,10 @@ MANUAL_EXTRACTIONS = {
 
 # Reported CCT activation-energy fit in the paper excludes 525C.
 CCT_REPORTED_FIT_TEMPS = (550, 575, 600)
+
+# Source_Data.xlsx: edge buffers for arrh_buf_* / spatial_pts_* (must match figure sweeps).
+SOURCE_DATA_EDGE_BUFFERS = (0, 1, 5, 10, 15, 22, 23, 24, 25)
+
+# If False, Source_Data.xlsx does not duplicate creep isotherm sheets (creep22_*); those stay
+# only in results/creep_curves_data.xlsx — smaller journal bundle, same numbers.
+SOURCE_DATA_EMBED_CREEP_ISOTHERMS = True

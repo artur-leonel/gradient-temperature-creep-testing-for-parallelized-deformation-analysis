@@ -1,0 +1,35 @@
+---
+description: Keep NCOMMS code+data repo publication-ready (Nature-style sharing)
+alwaysApply: true
+---
+
+# Publication-ready repository (NCOMMS / DELTA-T creep)
+
+This project is a **journal-facing code and minimum-data bundle**. When editing or adding files:
+
+## Audience and tone
+
+- **README**, **`docs/*.md`**, **`CITATION.cff`**, and **`LICENSE`** are written for **reviewers and readers**, not lab notes. Avoid internal tooling, informal “you should…”, or links that do not belong in a public archive.
+- Prefer **neutral, imperative** prose (what the repo contains, how to run it, where data live).
+
+## Layout and scope
+
+- **Code:** `src/` only for pipeline logic; `scripts/` for small utilities; one primary entry: `python -m src.main` (and optional `python_workflow.py`).
+- **Data:** `data/raw/` = minimum inputs to reproduce; `results/` = regenerated tables; `images/` = figure outputs. Do not add large ad-hoc binaries without documenting them in `docs/data_provenance.md` and `docs/data_sources.md`.
+- **Source data for the paper:** `results/Source_Data.xlsx` + `results/source_data/*.npz` — keep aligned with figure mapping (`docs/manuscript_figure_mapping.md`). Use `SOURCE_DATA_*` flags in `src/pipeline/constants.py` when trimming duplicates for deposit (see `docs/data_provenance.md`).
+
+## Reproducibility
+
+- After substantive changes, the tree should still pass **`python scripts/smoke_test.py`** and **`python -m src.main verify-images`** (after a full run when figures change).
+- Lockfile **`requirements-lock.txt`** should stay consistent with **`requirements.txt`** when dependencies change.
+
+## Release hygiene
+
+- **`CITATION.cff`:** `repository-code` and metadata match the public git URL and final author list before Zenodo/GitHub release.
+- **`LICENSE`:** University / TCO requirements stay accurate; do not swap copyright without confirmation.
+- Versioning: tag releases (e.g. `v1.0.0`) to match the paper’s Code Availability DOI workflow (`docs/deposition.md`).
+
+## Do not
+
+- Commit secrets, `.env`, or local absolute paths.
+- Reintroduce **internal-only** dataset APIs or credentials into README or citation-facing files.

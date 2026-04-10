@@ -14,6 +14,8 @@ from src.pipeline.constants import (
     GROUP_STEP,
     INITIAL_TEMP_THRESHOLD,
     ISOTHERM_LOW,
+    SOURCE_DATA_EDGE_BUFFERS,
+    SOURCE_DATA_EMBED_CREEP_ISOTHERMS,
     WORKBOOK_PATH,
 )
 from src.pipeline.data_access import load_manual_data_sheet
@@ -88,26 +90,40 @@ def _spatial_points(eb: int):
 def export_source_data_workbook(
     xlsx_path: str = "results/Source_Data.xlsx",
     npz_dir: str = "results/source_data",
+    *,
+    edge_buffers: tuple[int, ...] | None = None,
+    embed_creep_isotherms: bool | None = None,
 ) -> None:
     os.makedirs(os.path.dirname(xlsx_path) or ".", exist_ok=True)
     os.makedirs(npz_dir, exist_ok=True)
 
-    edge_buffers = [0, 1, 5, 10, 15, 22, 23, 24, 25]
+    eb_list = edge_buffers if edge_buffers is not None else SOURCE_DATA_EDGE_BUFFERS
+    embed_creep = (
+        SOURCE_DATA_EMBED_CREEP_ISOTHERMS
+        if embed_creep_isotherms is None
+        else embed_creep_isotherms
+    )
 
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-        meta = pd.DataFrame(
-            [
-                {"key": "title", "value": "Source Data — Delta-T creep analysis"},
+        meta_rows = [
+            {"key": "title", "value": "Source Data — Delta-T creep analysis"},
+            {
+                "key": "description",
+                "value": "Numeric data underlying Python-generated figures; see docs/manuscript_figure_mapping.md",
+            },
+            {
+                "key": "companion_npz",
+                "value": str(Path(npz_dir) / "all_delta_t_strain_full.npz"),
+            },
+        ]
+        if not embed_creep:
+            meta_rows.append(
                 {
-                    "key": "description",
-                    "value": "Numeric data underlying Python-generated figures; see docs/manuscript_figure_mapping.md",
-                },
-                {
-                    "key": "companion_npz",
-                    "value": str(Path(npz_dir) / "all_delta_t_strain_full.npz"),
-                },
-            ]
-        )
+                    "key": "creep_isotherm_tables",
+                    "value": "In results/creep_curves_data.xlsx (not duplicated here); set SOURCE_DATA_EMBED_CREEP_ISOTHERMS=True to embed.",
+                }
+            )
+        meta = pd.DataFrame(meta_rows)
         meta.to_excel(writer, sheet_name=_sheet("About"), index=False)
 
         buf_list, energies = [], []
@@ -144,7 +160,7 @@ def export_source_data_workbook(
                     writer, sheet_name=_sheet("cov_vs_temperature"), index=False
                 )
 
-        for eb in edge_buffers:
+        for eb in eb_list:
             res = run_analysis(eb)
             if not res:
                 continue
@@ -195,7 +211,7 @@ def export_source_data_workbook(
                 writer, sheet_name=_sheet("all_techniques_points"), index=False
             )
 
-        for eb in edge_buffers:
+        for eb in eb_list:
             sp = _spatial_points(eb)
             if sp is None:
                 continue
@@ -301,7 +317,7 @@ def export_source_data_workbook(
                 )
 
         creep_xlsx = Path("results/creep_curves_data.xlsx")
-        if creep_xlsx.is_file():
+        if embed_creep and creep_xlsx.is_file():
             xl = pd.ExcelFile(creep_xlsx)
             for sn in xl.sheet_names:
                 pref = "creep22_" + sn

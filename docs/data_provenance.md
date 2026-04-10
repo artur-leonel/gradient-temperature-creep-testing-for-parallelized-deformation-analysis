@@ -83,6 +83,24 @@ Representative outputs:
 
 <div style="page-break-after: always;"></div>
 
+## Source_Data.xlsx — what is large and what is optional
+
+Built by `export_source_data_workbook()` after a full run. Intended as **numeric backing for Python-generated figures**, not a dump of the entire raw workbook.
+
+| Region | Role | Size drivers |
+|--------|------|----------------|
+| `arrh_buf_*`, `spatial_pts_b*` | One sheet per edge buffer in `SOURCE_DATA_EDGE_BUFFERS` (`constants.py`). Matches Arrhenius / spatial / activation-energy-vs-buffer sweeps. | Row counts drop as buffer increases (fewer valid spatial points). |
+| `all_techniques_points` | Overlay points for CCT vs manual vs Python ΔT. | Moderate. |
+| `manual_DT_long` | Long-format time–strain for **paper-curated** manual `E*` channels only (not the whole Excel). | ~10⁴ rows; scales with channels × time points. |
+| `temperature_groups` | Long-format copy of the `all_data` slices used for the temperature-group figure. | ~10⁴–10⁵ rows from 8 groups × extensometers × time. |
+| `creep22_*` | Duplicate of `results/creep_curves_data.xlsx` (Metadata + `Temp_*` isotherm sheets). | Often **most of the file size**: dense isotherms (e.g. 600 °C) export **every** curve column used in creep figures (5 °C grouping). |
+
+**Optional slimming (same numbers, smaller Source_Data):** in `src/pipeline/constants.py`, set `SOURCE_DATA_EMBED_CREEP_ISOTHERMS = False`. Creep isotherm tables then stay **only** in `results/creep_curves_data.xlsx`; the `About` sheet records that link. Re-run `python -m src.main run` (or call `export_source_data_workbook()` after the pipeline) to regenerate.
+
+**Raw input `data/raw/workbook/main.xlsx`:** the pipeline reads only the sheets listed in `docs/data_sources.md`. Other tabs (e.g. scratch / graphs) are **not** read at runtime; you may distribute a trimmed copy for deposit if you want a smaller raw bundle.
+
+<div style="page-break-after: always;"></div>
+
 ## Reproducibility and Validation Notes
 
 - Workflow execution command: `python -m src.main run`
