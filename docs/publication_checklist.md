@@ -23,9 +23,9 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 ## Technical verification
 
 - [x] Dependencies: `requirements.txt` matches the intent of `requirements-lock.txt` (re-freeze after changing `requirements.txt`).
-- [x] `python scripts/smoke_test.py` — OK *(2026-03-31).*
-- [x] `python -m src.main verify-images` — **27 / 27** SVGs *(2026-03-31; assumes post-run `images/`).*
-- [ ] `python -m src.main run` — run end-to-end after any change to analysis or plotting, then re-verify images and Source Data.
+- [x] `python scripts/smoke_test.py` — OK *(2026-03-30).*
+- [x] `python -m src.main verify-images` — **27 / 27** SVGs *(2026-03-30, after full run).*
+- [x] `python -m src.main run` — full pipeline completed successfully; Source Data and NPZ regenerated *(2026-03-30).*
 
 ## Archive
 
@@ -37,7 +37,9 @@ Use this before tagging a release or submitting a Zenodo / journal archive.
 
 | Check | Result | Date |
 |--------|--------|------|
-| Orphan `results/arrhenius_buffer_20_*` removed (not produced by current buffer list) | Done | 2026-03-31 |
-| `workflow.main()` uses `SOURCE_DATA_EDGE_BUFFERS` from `constants.py` | Done | 2026-03-31 |
-| `.gitignore` extended (`data/processed/`, `Thumbs.db`, `*.tmp`, `*.log`) | Done | 2026-03-31 |
-| `src/` grep: no hardcoded secrets / user profile paths | Done | 2026-03-31 |
+| Orphan `results/arrhenius_buffer_20_*` removed (not produced by current buffer list) | Done | 2026-03-30 |
+| `workflow.main()` uses `SOURCE_DATA_EDGE_BUFFERS` from `constants.py` | Done | 2026-03-30 |
+| `.gitignore` extended (`data/processed/`, `Thumbs.db`, `*.tmp`, `*.log`) | Done | 2026-03-30 |
+| `src/` grep: no hardcoded secrets / user profile paths | Done | 2026-03-30 |
+| `python -m src.main run` (exit 0, ~3 min on reference machine) | Done | 2026-03-30 |
+| `python -m src.main verify-images` post-run | 27 / 27 | 2026-03-30 |
