@@ -21,4 +21,4 @@ Step-by-step workbooks used to build plots (not all are duplicated inside `Sourc
 
 ## Legacy layout
 
-Older clones may still have spreadsheets at `results/` root or under `results/source_data/`. After one full run with the current code, new files appear only under `published/` and `workflow_exports/`; you may delete stale copies at the old paths if present.
+Spreadsheets are **no longer** written to the `results/` root; the NPZ moved from `results/source_data/` to `results/published/`. If you still see old paths after pulling, delete them and run `python -m src.main run` once.
