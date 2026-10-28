@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "DELTA-T gradient creep analysis pipeline"
+title: "Gradient Temperature Creep Testing for Parallelized Deformation Analysis"
 message: "Please cite this software when using the analysis workflow."
 type: software
 authors:
@@ -10,7 +10,7 @@ authors:
     given-names: "Calvin M."
     affiliation: "The Ohio State University"
 license: MIT
-repository-code: "https://github.com/artur-leonel/delta-t-creep"
+repository-code: "https://github.com/artur-leonel/gradient-temperature-creep-testing-for-parallelized-deformation-analysis"
 abstract: "Python workflow for processing gradient-temperature creep DIC data and generating manuscript figures."
 keywords:
   - creep
