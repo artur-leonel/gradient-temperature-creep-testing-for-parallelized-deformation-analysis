@@ -55,7 +55,7 @@ def examine_excel_data(excel_path=WORKBOOK_PATH):
 def analyze_curve_filtering(edge_buffer=0):
     """
     Analyze curve filtering and report discarded counts.
-    Returns X, Y, Z for temperature threshold, stability, and isotherm grouping.
+    Returns X, Y, Z for temperature threshold, first-to-last temperature change, and isotherm grouping.
     """
     print("Analyzing curve filtering process...")
 
@@ -85,12 +85,12 @@ def analyze_curve_filtering(edge_buffer=0):
     X = temp_threshold_discarded
     print(f"Temperature threshold discarded: {X} curves")
 
-    # Step 4: ASTM temperature stability filtering (Y)
+    # Step 4: First-to-last temperature change screening (Y)
     astm_stability_mask = np.abs(final_temp - init_temp) <= ASTM_TEMP_TOL
     combined_temp_mask = temp_threshold_mask & astm_stability_mask
     astm_stability_discarded = temp_threshold_passed - np.sum(combined_temp_mask)
     Y = astm_stability_discarded
-    print(f"ASTM temperature stability discarded: {Y} curves")
+    print(f"First-to-last temperature change screen discarded: {Y} curves")
 
     # Step 5: Zero curve filtering
     valid_indices = np.where(combined_temp_mask)
@@ -129,7 +129,7 @@ def analyze_curve_filtering(edge_buffer=0):
     if edge_buffer > 0:
         print(f"Edge buffer discarded: {total_curves - curves_after_trimming}")
     print(f"Temperature threshold discarded (X): {X}")
-    print(f"ASTM temperature stability discarded (Y): {Y}")
+    print(f"First-to-last temperature change screen discarded (Y): {Y}")
     print(f"Zero curves discarded: {zero_curves}")
     print(f"Isotherm grouping discarded (Z): {Z}")
     print(f"Final valid curves: {isotherm_grouped_curves}")

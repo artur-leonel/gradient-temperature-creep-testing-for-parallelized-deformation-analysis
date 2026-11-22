@@ -26,7 +26,12 @@ def load_core_arrays():
     return strain, temp
 
 
-def load_cct_data(excel_path=WORKBOOK_PATH):
+def figure6_cct_baseline_offset(temperature, strain_values):
+    """Recover the minimum-relative 550 °C baseline used in both Figure 6 panels."""
+    return -float(np.min(strain_values)) if temperature == 550 else 0.0
+
+
+def load_cct_data(excel_path=WORKBOOK_PATH, *, align_525=True):
     cct_temps = [525, 550, 575, 600]
     cct_data = {}
     max_retries = 5
@@ -62,7 +67,7 @@ def load_cct_data(excel_path=WORKBOOK_PATH):
         time_values = time_data[mask].to_numpy()
         strain_values = best["strain"][mask].to_numpy()
 
-        if temperature == 525 and len(time_values) > 1:
+        if align_525 and temperature == 525 and len(time_values) > 1:
             time_values = time_values[1:]
             strain_values = strain_values[1:]
 

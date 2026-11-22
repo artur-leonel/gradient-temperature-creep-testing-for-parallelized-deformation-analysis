@@ -42,7 +42,7 @@ def main() -> int:
         "| `images/activation_energy/activation_energy_vs_buffer.svg` | `plot_activation_energy_vs_buffer` |",
         "| `images/temperature_analysis/cov_vs_temperature.svg` | `plot_cov_vs_temperature` |",
         "| `images/creep_curves/creep_strain_curves.svg` | `plot_creep_curves` |",
-        "| `images/creep_curves/creep_strain_curves_v2.svg` | `plot_creep_strain_curves_with_manual_data` |",
+        "| `images/creep_curves/creep_strain_curves_v2.svg` | `plot_creep_curves_v2` |",
         "| `images/creep_curves/all_delta_t_creep_curves.svg` | `plot_all_delta_t_creep_curves` |",
         "| `images/temperature_analysis/temperature_groups.svg` | `plot_temperature_groups` |",
         "| `images/spatial_effects/arrhenius_spatial_stress_effects_buffer_*.svg` | `plot_arrhenius_spatial_stress_effects` |",

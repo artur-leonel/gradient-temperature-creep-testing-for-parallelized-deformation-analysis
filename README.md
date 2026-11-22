@@ -1,18 +1,18 @@
 # DELTA-T creep analysis — code and minimum data
 
-**Goal:** a **publication-ready** code + minimum-data repository: reproducible figures, documented inputs, and journal-style source data alongside the manuscript.
+**Goal:** a code and minimum-data repository with documented inputs, figures, and journal-style source data alongside the manuscript.
 
-Python workflow for gradient-temperature creep DIC data (ASTM-oriented filtering) and manuscript figures/tables. Before release, use [`docs/publication_checklist.md`](docs/publication_checklist.md).
+Python workflow for gradient-temperature creep DIC data using temperature and spatial screening, with manuscript figures and tables. Before release, use [`docs/publication_checklist.md`](docs/publication_checklist.md).
 
-**License:** [MIT](LICENSE). The Ohio State University may hold copyright for work done under employment or sponsored research; see `LICENSE` and OSU Technology Commercialization Office for redistribution questions.
+**License:** The [LICENSE](LICENSE) file contains a copyright statement and redistribution conditions. Institutional ownership and authorization have not been confirmed.
 
-**Python:** Locked on **3.12** (`requirements-lock.txt`). **3.10+** expected with `requirements.txt`.
+**Python:** The workflow was checked on Windows in an isolated Python **3.12.10** virtual environment with the versions recorded in `requirements-lock.txt`. **3.10+** is expected with `requirements.txt`.
 
 ## Setup
 
 1. Virtual environment recommended.
 2. `pip install -r requirements.txt` (includes `pypdf` for `scripts/build_nature_docs.py`).
-3. Optional exact env: `pip install -r requirements-lock.txt`.
+3. To install the recorded versions: `pip install -r requirements-lock.txt`. All 19 exact pins were installed from official PyPI in the isolated environment and `pip check` passed; the file does not pin hashes.
 4. Commands below: run from this directory (contains `src/`).
 
 ## Commands
@@ -29,9 +29,15 @@ Python workflow for gradient-temperature creep DIC data (ASTM-oriented filtering
 1. `python scripts/smoke_test.py` — required raw paths and `src/main.py` exist.
 2. After a full run: `python -m src.main verify-images`.
 
+The manuscript supplementary data use the same arrays and curves as the files below. In the repository, the companion named "Supplementary Data 3 - strain array.npz" in the manuscript is stored as `results/published/all_delta_t_strain_full.npz`. The 525 °C Figure 7 conventional-test point uses the original unshifted fit window; the Figure 3 and 6 creep histories retain their original alignment.
+
+After the alternate manual-data plot correction, the full workflow in the isolated environment reported “Analysis complete” with empty stderr; its detached process exit code was not captured. Smoke and 27/27 image-count checks passed. Regenerated workbook values agree with the supplementary data within the stated tolerance, and both strain arrays match exactly. The previous lock is retained in the archived prior release ZIP. See [`docs/publication_checklist.md`](docs/publication_checklist.md) for verification scope and limits.
+
+Image frames are one minute apart; MCSR is expressed in min⁻¹ and `ln_MCSR` is the natural logarithm of that per-minute value. The analysis slice `99:199` includes frame 99 and excludes frame 199. The 554 curves at edge buffer 22 are the screened total before temperature grouping.
+
 ## Archiving / DOIs
 
-Checklist: [`docs/deposition.md`](docs/deposition.md). Citation: [`CITATION.cff`](CITATION.cff) — update `date-released`, author list, and identifiers when minting Zenodo or a journal archive.
+No archival DOI is recorded for the code or data in this package. Checklist: [`docs/deposition.md`](docs/deposition.md). Citation: [`CITATION.cff`](CITATION.cff) — add a verified release date and identifiers, and confirm the author list, when archiving.
 
 ## Outputs (after `python -m src.main run`)
 

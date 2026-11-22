@@ -32,7 +32,7 @@ def load_manual_data_from_excel(excel_path=WORKBOOK_PATH):
 
         print("=== MANUAL DATA PROCESSING (PAPER METHODOLOGY) ===")
         print("Following paper: Only top virtual extensometers + 600°C bottom only")
-        print("Bottom isotherms (575, 550, 525°C) excluded - don't meet ASTM ±2°C stability")
+        print("Bottom isotherms (575, 550, 525°C) excluded due to temperature changes")
 
         # Process each Delta T sheet systematically
         for sheet_idx in DELTA_T_SHEET_INDICES:
@@ -137,7 +137,7 @@ def load_manual_data_from_excel(excel_path=WORKBOOK_PATH):
 
         print("\n=== RESULTS ===")
         print(f"Total valid data points: {len(manual_temps)}")
-        print("Expected: 25 ASTM-valid creep curves (per paper)")
+        print("Paper selection: 25 creep histories; 24 have positive log rates")
 
         if len(manual_temps) >= 2:
             manual_temps = np.array(manual_temps)

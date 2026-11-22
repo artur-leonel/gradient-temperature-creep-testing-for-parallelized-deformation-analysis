@@ -14,9 +14,9 @@ The analysis package does **not** include a manuscript PDF. Context for methods 
 Exported PDFs of the manuscript are optional and not used by the pipeline.
 
 - Key reported workflow behavior in manuscript/supplement:
-  - Raw creep curves are culled using ASTM-oriented filters.
-  - Culling factors include edge buffer, creep activation temperature, temperature stability, and isotherm grouping.
-  - Reported progression: large raw set (13,462) reduced to ASTM-valid subset (474).
+  - Raw creep curves are culled using the workflow filters.
+  - Culling factors include edge buffer, creep activation temperature, first-to-last temperature change, and isotherm grouping.
+  - Reported progression: large raw set (13,462) reduced to a filtered subset (474).
 
 <div style="page-break-after: always;"></div>
 
@@ -54,7 +54,7 @@ Main transformation steps:
 1. Load full-field strain/temperature arrays.
 2. Apply area trimming with edge buffer.
 3. Apply temperature activation threshold.
-4. Apply ASTM temperature stability filtering.
+4. Screen first-to-last temperature change; this does not establish full-duration temperature stability or ASTM compliance.
 5. Group into isotherm bands and remove sparse/invalid groups.
 6. Compute MCSR/Arrhenius/activation-energy outputs.
    - Python Delta-T uses filtered full-field DIC curves.
@@ -114,13 +114,8 @@ Built by `export_source_data_workbook()` after a full run. Intended as **numeric
 
 <div style="page-break-after: always;"></div>
 
-## Deposition (fill in after archiving)
+## Deposition
 
-Record final DOIs here and mirror them in the manuscript Data/Code Availability sections:
-
-| Resource | Repository | DOI / URL |
-|---|---|---|
-| Code snapshot | e.g. Zenodo | _pending_ |
-| Data (raw + source data) | e.g. discipline repository / Zenodo | _pending_ |
+No archival DOI is recorded for the code snapshot or data in this package. Record verified repository identifiers here and in the manuscript Data/Code Availability sections after archiving.
 
 Step-by-step checklist: [`docs/deposition.md`](deposition.md).

@@ -12,6 +12,8 @@ from src.pipeline.constants import (
     ANALYSIS_START,
     ASTM_TEMP_TOL,
     CREEP_CURVES_XLSX_NAME,
+    FIGURE6_CCT_MARK_EVERY,
+    FIGURE6_MAX_TIME_MIN,
     GROUP_STEP,
     INITIAL_TEMP_THRESHOLD,
     ISOTHERM_LOW,
@@ -22,10 +24,11 @@ from src.pipeline.constants import (
     STRAIN_NPZ_FILENAME,
     WORKBOOK_PATH,
 )
-from src.pipeline.data_access import load_manual_data_sheet
+from src.pipeline.data_access import figure6_cct_baseline_offset, load_manual_data_sheet
 from src.pipeline.manual_data import get_manual_data_columns_by_temperature
 from src.pipeline.workflow import (
     compute_activation_energy_for_edge_buffer,
+    figure7_cct_data,
     load_cct_data,
     load_manual_data_from_excel,
     run_analysis,
@@ -124,6 +127,13 @@ def export_source_data_workbook(
                 "value": npz_rel,
             },
         ]
+        meta_rows.append({
+            "key": "figure6_cct_markers",
+            "value": (
+                "Figure6_CCT_markers contains the Figure 6a,b CCT marker centers through minute 450. "
+                "The 550 °C plot subtracts the minimum of the source history."
+            ),
+        })
         if not embed_creep:
             meta_rows.append(
                 {
@@ -179,7 +189,7 @@ def export_source_data_workbook(
                 {
                     "inv_T_K-1": res["inv_T"],
                     "ln_MCSR": res["ln_MCSR"],
-                    "MCSR_s-1": res["MCSR"],
+                    "MCSR_min-1": res["MCSR"],
                     "initial_temperature_C": res["temp_init"],
                 }
             ).to_excel(writer, sheet_name=_sheet(f"arrh_buf_{eb}"), index=False)
@@ -195,7 +205,7 @@ def export_source_data_workbook(
                         "temperature_C": res22["temp_init"][i],
                     }
                 )
-            cct = res22.get("cct", {})
+            cct = figure7_cct_data(res22.get("cct", {}))
             if cct and "cct_inv_T_vals" in cct:
                 for invv, lnv in zip(cct["cct_inv_T_vals"], cct["cct_ln_vals"]):
                     rows.append(
@@ -245,6 +255,29 @@ def export_source_data_workbook(
                 pd.DataFrame({"time_min": d["time"], "strain_mm_mm": d["strain"]}).to_excel(
                     writer, sheet_name=_sheet(f"CCT_{t}C_curve"), index=False
                 )
+
+        if cct_data:
+            marker_start, marker_step = FIGURE6_CCT_MARK_EVERY
+            marker_rows = []
+            for temperature in temperatures:
+                if temperature not in cct_data:
+                    continue
+                history = cct_data[temperature]
+                offset = figure6_cct_baseline_offset(temperature, history["strain"])
+                for time, source_strain in zip(
+                    history["time"][marker_start::marker_step],
+                    history["strain"][marker_start::marker_step],
+                ):
+                    if 0 <= time <= min(strain.shape[-1], FIGURE6_MAX_TIME_MIN):
+                        marker_rows.append({
+                            "Temperature (°C)": temperature,
+                            "Plotted time (min)": time,
+                            "Source strain (mm/mm)": source_strain,
+                            "Baseline offset added (mm/mm)": offset,
+                            "Plotted strain (mm/mm)": source_strain + offset,
+                        })
+            if marker_rows:
+                pd.DataFrame(marker_rows).to_excel(writer, sheet_name="Figure6_CCT_markers", index=False)
 
         manual_rows = []
         for temp in temperatures:
@@ -332,7 +365,10 @@ def export_source_data_workbook(
             xl = pd.ExcelFile(creep_xlsx)
             for sn in xl.sheet_names:
                 pref = "creep22_" + sn
-                xl.parse(sn).to_excel(writer, sheet_name=_sheet(pref), index=False)
+                sheet = xl.parse(sn)
+                if sn == "Temp_525C" and "Unnamed: 6" in sheet.columns:
+                    sheet = sheet.rename(columns={"Unnamed: 6": ""})
+                sheet.to_excel(writer, sheet_name=_sheet(pref), index=False)
 
     np.savez_compressed(
         out_npz,

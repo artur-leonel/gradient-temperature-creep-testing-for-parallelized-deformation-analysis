@@ -12,6 +12,8 @@ from src.pipeline.constants import (
     ASTM_TEMP_TOL,
     CCT_REPORTED_FIT_TEMPS,
     CREEP_CURVES_XLSX_NAME,
+    FIGURE6_CCT_MARK_EVERY,
+    FIGURE6_MAX_TIME_MIN,
     GAS_CONSTANT_J_PER_MOLK,
     GROUP_STEP,
     INITIAL_TEMP_THRESHOLD,
@@ -25,6 +27,7 @@ from src.pipeline.constants import (
 )
 from src.pipeline.data_access import (
     ensure_output_dirs,
+    figure6_cct_baseline_offset,
     load_cct_data,
     load_core_arrays,
     load_manual_data_sheet,
@@ -105,14 +108,16 @@ def run_analysis(edge_buffer):
     # Gather creep curves and filter curves that are all zeros.
     temp_valid = init_temp[valid_mask]
     all_creep_curves = [strain_trim[i, j, :] for i, j in zip(*valid_indices)]
-    filtered = [(curve, T) for curve, T in zip(all_creep_curves, temp_valid) if not np.allclose(curve, 0)]
+    nonzero = np.array([not np.allclose(curve, 0) for curve in all_creep_curves])
+    curve_locations = np.column_stack(valid_indices)[nonzero]
+    filtered = [(curve, T) for curve, T, keep in zip(all_creep_curves, temp_valid, nonzero) if keep]
     if not filtered:
         print("All valid curves are zero. Skipping analysis.")
         return None
     valid_curves, temp_valid = zip(*filtered)
     valid_curves = list(valid_curves)
     temp_valid = np.array(temp_valid)
-    temp_std_arr = np.std(temp_trim, axis=2)[valid_mask]
+    temp_std_arr = np.std(temp_trim, axis=2)[valid_mask][nonzero]
 
     # Extract segments for regression
     strain_segments = np.array([curve[ANALYSIS_START:ANALYSIS_END] for curve in valid_curves])
@@ -137,6 +142,7 @@ def run_analysis(edge_buffer):
     temp_valid = temp_valid[valid]
     temp_std_arr = temp_std_arr[valid]
     valid_curves = np.array(valid_curves, dtype=object)[valid].tolist()
+    curve_locations = curve_locations[valid]
 
     # Compute Arrhenius parameters
     ln_MCSR = np.log(slopes)
@@ -201,6 +207,7 @@ def run_analysis(edge_buffer):
         'temp_init': temp_valid,
         'MCSR': slopes,
         'creep_curves': valid_curves,
+        'curve_locations': curve_locations,  # zero-based coordinates within the trimmed array
         'cct': cct_result
     }
 
@@ -439,6 +446,35 @@ def plot_activation_energy_vs_buffer(max_buffer=24, save_fig=True, display=False
 
 # ----------------- Plot Functions -----------------------
 
+def figure7_cct_data(cct):
+    """Return Figure 7 CCT rates, using the original unshifted 525 C fit window.
+
+    The 525 C creep-history plots deliberately retain their first-row alignment;
+    only the 525 C Arrhenius rate uses the original workbook row indexing.
+    """
+    if not cct or 525 not in cct.get('cct_sheet_temps', []):
+        return cct
+    raw = load_cct_data(align_525=False)
+    if 525 not in raw:
+        raise ValueError('The unshifted 525 C CCT data required by Figure 7 are unavailable')
+    time = np.asarray(raw[525]['time'])[ANALYSIS_START:ANALYSIS_END]
+    strain_values = np.asarray(raw[525]['strain'])[ANALYSIS_START:ANALYSIS_END]
+    if len(time) < 2 or len(time) != len(strain_values):
+        raise ValueError('The unshifted 525 C CCT fit window is incomplete')
+    rate = np.polyfit(time, strain_values, 1)[0]
+    if not np.isfinite(rate) or rate <= 0:
+        raise ValueError('The Figure 7 525 C CCT rate must be finite and positive')
+    result = dict(cct)
+    result['cct_ln_vals'] = list(cct['cct_ln_vals'])
+    index = list(cct['cct_sheet_temps']).index(525)
+    result['cct_ln_vals'][index] = float(np.log(rate))
+    if len(result.get('cct_inv_T_vals', [])) >= 2:
+        result['cct_slope'] = float(np.polyfit(result['cct_inv_T_vals'], result['cct_ln_vals'], 1)[0])
+        result['cct_Q_cr'] = -result['cct_slope'] * GAS_CONSTANT_J_PER_MOLK / 1000
+    return result
+
+
+
 def plot_arrhenius(edge_buffers, save_fig=True, display=False):
     """Generate Arrhenius plots for specified edge buffers."""
     set_plot_style()
@@ -472,7 +508,7 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
         ax.xaxis.grid(True, linestyle='--', alpha=0.5)
         ax.yaxis.grid(False)
         ax.set_xlabel(r'Inverse Temperature, $1/T$ (K$^{-1}$)')
-        ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR})$ (s$^{-1}$)')
+        ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR}\;[\mathrm{min}^{-1}])$')
         tick_positions = [1 / (temp + 273.15) for temp in [525, 550, 575, 600]]
         ax.set_xticks(tick_positions)
         if not res:
@@ -510,6 +546,8 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
                         alpha=0.7)
             # Plot CCT regression and points.
             cct = res.get('cct', {})
+            if eb == 22:
+                cct = figure7_cct_data(cct)
             if cct and 'cct_inv_T_vals' in cct and len(cct['cct_inv_T_vals']) >= 2:
                 cct_marker_map = {525: 'o', 550: 's', 575: '^', 600: 'D'}
                 cct_temp_tol = 3.0
@@ -530,7 +568,7 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
                         label = 'CCT Data Points'
                     else:
                         marker = cct_marker_map[closest_temp]
-                        label = f'CCT Data Points {closest_temp}Â°C'
+                        label = f'CCT Data Points {closest_temp}°C'
                     label_to_use = label if label not in plotted_cct_labels else None
                     if label_to_use:
                         plotted_cct_labels.add(label_to_use)
@@ -547,13 +585,11 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
             manual_data = load_manual_data_from_excel()
             if manual_data is not None:
                 # Use different markers for different temperatures (matching other plots)
-                manual_markers = ['o', 's', '^', 'D']  # circle, square, triangle, diamond for 525, 550, 575, 600Â°C
+                manual_markers = ['o', 's', '^', 'D']  # circle, square, triangle, diamond for 525, 550, 575, 600°C
                 temperatures = [525, 550, 575, 600]
-                # Reviewer-requested sample counts per temperature
-                manual_counts_expected = {525: 5, 550: 5, 575: 5, 600: 10}
                 
                 # Plot manual data points grouped by temperature with different markers
-                # Use a slightly more flexible tolerance for manual data matching (Â±3Â°C to catch all data)
+                # Use a slightly more flexible tolerance for manual data matching (±3°C to catch all data)
                 manual_temp_tol = 3.0
                 for i, temp in enumerate(temperatures):
                     # Find data points near this temperature
@@ -562,7 +598,7 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
                         temp_inv_T = manual_data['manual_inv_T'][temp_mask]
                         temp_ln_mcsr = manual_data['manual_ln_mcsr'][temp_mask]
                         temp_count_actual = int(np.sum(temp_mask))
-                        temp_count = manual_counts_expected.get(temp, temp_count_actual)
+                        temp_count = temp_count_actual
                         # Plot with white fill and black edge, different marker per temperature
                         ax.plot(temp_inv_T, temp_ln_mcsr, 
                                marker=manual_markers[i], markersize=6 * SCALING_FACTOR, linestyle='None',
@@ -590,11 +626,18 @@ def plot_arrhenius(edge_buffers, save_fig=True, display=False):
                     key_entries[l] = h
             # Colorbar: positioned above main axes, aligned with plotting area
             xmin, xmax = ax.get_xlim()
-            norm_cb = mpl.colors.Normalize(vmin=xmin, vmax=xmax)
-            sm = mpl.cm.ScalarMappable(cmap=mpl.cm.magma, norm=norm_cb)
+            # The plotted points use one magma color per 5 C temperature group.
+            # Inverse temperature runs opposite to temperature, so reverse the
+            # group colors and place boundaries halfway between group centers.
+            inverse_centers = 1 / (centers[::-1] + 273.15)
+            boundaries = np.r_[xmin, (inverse_centers[:-1] + inverse_centers[1:]) / 2, xmax]
+            group_cmap = mpl.colors.ListedColormap(colors[::-1])
+            norm_cb = mpl.colors.BoundaryNorm(boundaries, group_cmap.N)
+            sm = mpl.cm.ScalarMappable(cmap=group_cmap, norm=norm_cb)
             sm.set_array([])
             cbar_ax = fig.add_axes([0.12, 0.83, 0.58, 0.03])
-            cbar = fig.colorbar(sm, cax=cbar_ax, orientation='horizontal')
+            cbar = fig.colorbar(sm, cax=cbar_ax, orientation='horizontal',
+                                boundaries=boundaries, spacing='proportional')
             cbar.set_label(r'Temperature ($^\circ$C)', labelpad=10 * SCALING_FACTOR)
             cbar.ax.xaxis.set_label_position('top')
             cbar.ax.xaxis.tick_top()
@@ -715,7 +758,7 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
                             color=colors[i], alpha=fill_alpha)
             mkr = marker_mapping.get(center, 'o')
             
-            ax.plot(x_vals, np.mean(group_data, axis=0),
+            ax.plot(x_vals, np.median(group_data, axis=0),
                     color=colors[i],
                     linestyle=linestyle, 
                     linewidth=linewidth,
@@ -730,6 +773,7 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
             if temp in cct_data:
                 time_vals = cct_data[temp]['time']
                 strain_vals = cct_data[temp]['strain']
+                strain_vals = strain_vals + figure6_cct_baseline_offset(temp, strain_vals)
                 # Use markers with green fill, alternating with manual data
                 # Manual data uses markevery=20 starting at 0 (positions: 0, 20, 40, 60, 80, 100...)
                 # CCT uses markevery=20 starting at 10 (positions: 10, 30, 50, 70, 90, 110...)
@@ -739,7 +783,7 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
                         alpha=0.7,
                         marker=cct_markers[idx],
                         markersize=2 * SCALING_FACTOR,
-                        markevery=(10, 20),  # Start at position 10, then every 20 points
+                        markevery=FIGURE6_CCT_MARK_EVERY,  # Start at position 10, then every 20 points
                         markerfacecolor='green',
                         markeredgecolor='black',
                         markeredgewidth=0.5 * SCALING_FACTOR,
@@ -758,9 +802,9 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
             data = load_manual_data_sheet(temp)
             if data is not None:
                 
-                # Fix corrupted time column for 600Â°C file
+                # Fix corrupted time column for 600°C file
                 if temp == 600:
-                    # The 600Â°C file has corrupted time data - reconstruct it
+                    # The 600°C file has corrupted time data - reconstruct it
                     time_col = data.columns[0]
                     data[time_col] = range(len(data))  # 0 to 449 minutes
                 
@@ -769,7 +813,7 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
                 time_data = data[time_col].values
                 
                 # Get strain columns and apply exact paper methodology filtering
-                all_strain_cols = [col for col in data.columns if col != time_col and 'temp' not in col.lower() and not col.startswith('Î”T')]
+                all_strain_cols = [col for col in data.columns if col != time_col and 'temp' not in col.lower() and not col.startswith('ΔT')]
                 
                 # Get the correct columns according to paper methodology
                 correct_columns = get_manual_data_columns_by_temperature(temp)
@@ -784,7 +828,7 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
                         strain_cols.append(col)
                         # Position tracking is intentionally omitted here; it is not needed for plotting.
                 
-                # Filter out columns with no valid data (like E39 in 600Â°C)
+                # Filter out columns with no valid data (like E39 in 600°C)
                 valid_strain_cols = []
                 for col in strain_cols:
                     strain_data = data[col].values
@@ -808,12 +852,12 @@ def plot_creep_curves(edge_buffer=22, save_fig=True, display=False, cct_data=Non
                            label=label)
                     
         except Exception as e:
-            print(f"Error loading manual data for {temp}Â°C: {e}")
+            print(f"Error loading manual data for {temp}°C: {e}")
             continue
     
     ax.set_xlabel(r'Time, $t$ (min)')
     ax.set_ylabel(r'Creep Strain, $\epsilon$ (mm/mm)')
-    ax.set_xlim(0, min(delta_t_max_time, 450))
+    ax.set_xlim(0, min(delta_t_max_time, FIGURE6_MAX_TIME_MIN))
     ax.set_ylim(0, overall_max_strain * 1.05)
     handles, labels = ax.get_legend_handles_labels()
     # Place legend outside the plot, right side, with proper spacing
@@ -884,7 +928,7 @@ def plot_creep_strain_curves_with_manual_data(edge_buffer=22, save_fig=True, dis
                             color=colors[i], alpha=fill_alpha)
             mkr = marker_mapping.get(center, 'o')
             
-            ax.plot(x_vals, np.mean(group_data, axis=0),
+            ax.plot(x_vals, np.median(group_data, axis=0),
                     color=colors[i],
                     linestyle=linestyle, 
                     linewidth=linewidth,
@@ -928,9 +972,9 @@ def plot_creep_strain_curves_with_manual_data(edge_buffer=22, save_fig=True, dis
             data = load_manual_data_sheet(temp)
             if data is not None:
                 
-                # Fix corrupted time column for 600Â°C file
+                # Fix corrupted time column for 600°C file
                 if temp == 600:
-                    # The 600Â°C file has corrupted time data - reconstruct it
+                    # The 600°C file has corrupted time data - reconstruct it
                     time_col = data.columns[0]
                     data[time_col] = range(len(data))  # 0 to 449 minutes
                 
@@ -939,10 +983,10 @@ def plot_creep_strain_curves_with_manual_data(edge_buffer=22, save_fig=True, dis
                 time_data = data[time_col].values
                 
                 # Get strain columns (all columns except time and any duplicate temp columns)
-                strain_cols = [col for col in data.columns if col.startswith('E') or col.startswith('Î”T')]
+                strain_cols = [col for col in data.columns if col.startswith('E') or col.startswith('ΔT')]
                 
                 # Filter out the temperature column if it exists
-                strain_cols = [col for col in strain_cols if not col.endswith(f'{temp}Â°C')]
+                strain_cols = [col for col in strain_cols if not col.endswith(f'{temp}°C')]
                 
                 # Plot individual curves
                 for j, col in enumerate(strain_cols[:10]):  # Limit to 10 curves per temperature
@@ -967,7 +1011,7 @@ def plot_creep_strain_curves_with_manual_data(edge_buffer=22, save_fig=True, dis
                            label=rf'Manual $\Delta T$ {temp}$^\circ$C (n={len(valid_cols)})', zorder=2)
                     
         except FileNotFoundError:
-            print(f"Warning: Could not find data file for temperature {temp}Â°C")
+            print(f"Warning: Could not find data file for temperature {temp}°C")
             continue
     
     ax.set_xlabel(r'Time, $t$ (min)')
@@ -981,7 +1025,7 @@ def plot_creep_strain_curves_with_manual_data(edge_buffer=22, save_fig=True, dis
                       fontsize=mpl.rcParams['legend.fontsize'], markerscale=2.0)
     legend.set_title('Curves', prop={'size': mpl.rcParams['legend.fontsize']})
     if save_fig:
-        fig.savefig('images/creep_curves/creep_strain_curves.svg', bbox_inches='tight',
+        fig.savefig('images/creep_curves/creep_strain_curves_with_manual_data.svg', bbox_inches='tight',
                     bbox_extra_artists=[legend])
     if display:
         plt.show()
@@ -1038,7 +1082,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                             color=colors[i], alpha=fill_alpha)
             mkr = marker_mapping.get(center, 'o')
             
-            ax.plot(x_vals, np.mean(group_data, axis=0),
+            ax.plot(x_vals, np.median(group_data, axis=0),
                     color=colors[i],
                     linestyle=linestyle, 
                     linewidth=linewidth,
@@ -1053,6 +1097,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
             if temp in cct_data:
                 time_vals = cct_data[temp]['time']
                 strain_vals = cct_data[temp]['strain']
+                strain_vals = strain_vals + figure6_cct_baseline_offset(temp, strain_vals)
                 # Use markers with green fill, alternating with manual data
                 # Manual data uses markevery=20 starting at 0 (positions: 0, 20, 40, 60, 80, 100...)
                 # CCT uses markevery=20 starting at 10 (positions: 10, 30, 50, 70, 90, 110...)
@@ -1062,7 +1107,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                         alpha=0.7,
                         marker=cct_markers[idx],
                         markersize=2 * SCALING_FACTOR,
-                        markevery=(10, 20),  # Start at position 10, then every 20 points
+                        markevery=FIGURE6_CCT_MARK_EVERY,  # Start at position 10, then every 20 points
                         markerfacecolor='green',
                         markeredgecolor='black',
                         markeredgewidth=0.5 * SCALING_FACTOR,
@@ -1080,9 +1125,9 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
             data = load_manual_data_sheet(temp)
             if data is not None:
                 
-                # Fix corrupted time column for 600Â°C file
+                # Fix corrupted time column for 600°C file
                 if temp == 600:
-                    # The 600Â°C file has corrupted time data - reconstruct it
+                    # The 600°C file has corrupted time data - reconstruct it
                     time_col = data.columns[0]
                     data[time_col] = range(len(data))  # 0 to 449 minutes
                 
@@ -1091,7 +1136,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                 time_data = data[time_col].values
                 
                 # Get strain columns and apply exact paper methodology filtering
-                all_strain_cols = [col for col in data.columns if col != time_col and 'temp' not in col.lower() and not col.startswith('Î”T')]
+                all_strain_cols = [col for col in data.columns if col != time_col and 'temp' not in col.lower() and not col.startswith('ΔT')]
                 
                 # Get the correct columns according to paper methodology
                 correct_columns = get_manual_data_columns_by_temperature(temp)
@@ -1106,7 +1151,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                         strain_cols.append(col)
                         # Position tracking is intentionally omitted here; it is not needed for plotting.
                 
-                # Filter out columns with no valid data (like E39 in 600Â°C)
+                # Filter out columns with no valid data (like E39 in 600°C)
                 valid_strain_cols = []
                 for col in strain_cols:
                     strain_data = data[col].values
@@ -1130,7 +1175,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                            label=label)
                     
         except FileNotFoundError:
-            print(f"Warning: Could not find data file for temperature {temp}Â°C")
+            print(f"Warning: Could not find data file for temperature {temp}°C")
             continue
     
     ax.set_xlabel(r'Time, $t$ (min)')
@@ -1154,7 +1199,7 @@ def plot_creep_curves_v2(edge_buffer=22, save_fig=True, display=False, cct_data=
                 max_strain = max(max_strain, np.max(cct_data[temp]['strain']))
     
     ax.set_ylim(0, 0.01)
-    ax.set_xlim(0, min(delta_t_max_time, 450))
+    ax.set_xlim(0, min(delta_t_max_time, FIGURE6_MAX_TIME_MIN))
     handles, labels = ax.get_legend_handles_labels()
     # Place legend outside the plot, right side, with proper spacing
     legend = ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1.02, 0.5), 
@@ -1312,14 +1357,34 @@ def save_creep_curves_data(edge_buffer=22, save_path: str | None = None):
         }).to_excel(writer, sheet_name='Metadata', index=False)
         for center in np.arange(ISOTHERM_LOW, max(temp_init) + GROUP_STEP, GROUP_STEP):
             idx = np.where(np.abs(temp_init - center) <= ASTM_TEMP_TOL)[0]
-            if len(idx) >= 5:
+            if len(idx) >= (3 if center in (525, 550, 575, 600) else 5):
                 min_length = min(len(creep_curves[i]) for i in idx)
                 frames = np.arange(min_length)
                 data_dict = {'Frame': frames}
                 for j, i in enumerate(idx):
                     data_dict[f'Curve_{j+1}_Temp_{temp_init[i]:.1f}C'] = creep_curves[i][:min_length]
                 data_dict['Average_Curve'] = np.mean([creep_curves[i][:min_length] for i in idx], axis=0)
-                pd.DataFrame(data_dict).to_excel(writer, sheet_name=f'Temp_{center:.0f}C', index=False)
+                sheet_name = f'Temp_{center:.0f}C'
+                pd.DataFrame(data_dict).to_excel(writer, sheet_name=sheet_name, index=False)
+                median_col = len(data_dict)
+                if center == 525:
+                    from openpyxl.utils import get_column_letter
+                    locations = res['curve_locations'][idx]
+                    other_count = sum(
+                        np.count_nonzero(np.abs(temp_init - group) <= ASTM_TEMP_TOL)
+                        for group in np.arange(530, max(temp_init) + GROUP_STEP, GROUP_STEP)
+                        if np.count_nonzero(np.abs(temp_init - group) <= ASTM_TEMP_TOL) >= (3 if group in (550, 575, 600) else 5)
+                    )
+                    provenance = pd.DataFrame({
+                        'Curve column': [get_column_letter(j + 2) for j in range(len(idx))] + ['Strain unit', 'Frame range', 'Frame interpretation', 'Workbook coverage', 'Original metadata total', 'Data source'],
+                        'Curve identifier': [f'r{row:04d}c{col:04d}' for row, col in locations] + ['mm/mm', f'0–{min_length - 1}', 'Exported frame index; no elapsed-time conversion applied', f'Original 530–600 C export: {other_count} curves; added 525 C group: {len(idx)} curves', f'{len(creep_curves)} curves before isotherm-band grouping; original metadata retained', 'Retained full-field strain histories and corresponding initial temperatures'],
+                        'Initial temperature (C)': list(temp_init[idx]) + [None] * 6,
+                    })
+                    provenance.to_excel(writer, sheet_name=sheet_name, index=False, startcol=len(data_dict) + 1)
+                    median_col = len(data_dict) + 4
+                pd.DataFrame({'Median_Curve': np.median([creep_curves[i][:min_length] for i in idx], axis=0)}).to_excel(
+                    writer, sheet_name=sheet_name, index=False, startcol=median_col)
+
     print(f"Creep curves data saved to {creep_xlsx}")
 
 def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False):
@@ -1376,7 +1441,7 @@ def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False)
             ax.scatter(inv_T_deltaT[idx], ln_MCSR_deltaT[idx], 
                       color=temp_to_color[temp], alpha=alpha_val, s=s_size,
                       marker=marker,
-                      label=f'Delta T Auto {temp}Â°C (n={len(idx)})', 
+                      label=f'Delta T Auto {temp}°C (n={len(idx)})',
                       edgecolors=edgecolor, linewidth=linewidth)
     
     # Plot Delta T automatic regression line
@@ -1389,7 +1454,7 @@ def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False)
                 alpha=0.8)
     
     # Plot CCT data points and regression
-    cct = res.get('cct', {})
+    cct = figure7_cct_data(res.get('cct', {}))
     if cct and 'cct_inv_T_vals' in cct and len(cct['cct_inv_T_vals']) >= 2:
         # Plot individual CCT data points with different colors for each temperature
         cct_colors = {'525': 'red', '550': 'blue', '575': 'black', '600': 'green'}
@@ -1404,7 +1469,7 @@ def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False)
             
             ax.scatter(invT_val, ln_val, 
                       color=color, marker=marker, s=80 * SCALING_FACTOR, alpha=0.9,
-                      label=f'CCT {temp_c}Â°C', edgecolors='darkred', linewidth=2 * SCALING_FACTOR)
+                      label=f'CCT {temp_c}°C', edgecolors='darkred', linewidth=2 * SCALING_FACTOR)
         
         # Plot CCT regression line
         slope_cct = cct['cct_slope']
@@ -1433,7 +1498,7 @@ def plot_all_techniques_comparison(edge_buffer=22, save_fig=True, display=False)
     
     # Set labels and formatting
     ax.set_xlabel(r'Inverse Temperature, $1/T$ (K$^{-1}$)')
-    ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR})$ (s$^{-1}$)')
+    ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR}\;[\mathrm{min}^{-1}])$')
     
     # Set x-axis ticks to show temperature values
     tick_positions = [1 / (temp + 273.15) for temp in [525, 550, 575, 600]]
@@ -1572,7 +1637,7 @@ def plot_arrhenius_spatial_stress_effects(edge_buffers, save_fig=True, display=F
             
             ax.plot(inv_t_val, ln_mcsr_val, marker='o', markersize=3 * SCALING_FACTOR,
                     linestyle='None', color=color, alpha=0.85,
-                    label='Î”T Data Points' if i == 0 else "",
+                    label='ΔT Data Points' if i == 0 else "",
                     path_effects=[path_effects.withStroke(foreground='gray')])
         
         # Add CCT data for comparison
@@ -1599,7 +1664,7 @@ def plot_arrhenius_spatial_stress_effects(edge_buffers, save_fig=True, display=F
                     label = 'CCT Data Points'
                 else:
                     marker = cct_marker_map[closest_temp]
-                    label = f'CCT Data Points {closest_temp}Â°C'
+                    label = f'CCT Data Points {closest_temp}°C'
                 label_to_use = label if label not in plotted_cct_labels else None
                 if label_to_use:
                     plotted_cct_labels.add(label_to_use)
@@ -1624,7 +1689,7 @@ def plot_arrhenius_spatial_stress_effects(edge_buffers, save_fig=True, display=F
         
         # Set labels and formatting
         ax.set_xlabel(r'Inverse Temperature, $1/T$ (K$^{-1}$)')
-        ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR})$ (s$^{-1}$)')
+        ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR}\;[\mathrm{min}^{-1}])$')
         
         # Set x-axis ticks to show inverse temperature values
         tick_positions = [1 / (temp + 273.15) for temp in [525, 550, 575, 600]]
@@ -1638,7 +1703,7 @@ def plot_arrhenius_spatial_stress_effects(edge_buffers, save_fig=True, display=F
             # Handle manual regression label with variable Q value
             if r'Manual $\Delta T$ Regression' in l:
                 key_entries[r'Manual $\Delta T$ Regression'] = h
-            elif l in ['CCT Regression', 'Î”T Data Points', r'$\Delta T$ Data Points', 'Delta T Regression']:
+            elif l in ['CCT Regression', 'ΔT Data Points', r'$\Delta T$ Data Points', 'Delta T Regression']:
                 # Update labels to use proper delta symbol
                 if l == 'Delta T Regression':
                     key_entries[r'$\Delta T$ Regression'] = h
@@ -1818,7 +1883,7 @@ def plot_arrhenius_with_spatial_coloring(edge_buffer=0, save_fig=True, display=F
     
     # Set labels and formatting
     ax.set_xlabel(r'Inverse Temperature, $1/T$ (K$^{-1}$)')
-    ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR})$ (s$^{-1}$)')
+    ax.set_ylabel(r'Natural Logarithm of MCSR, $\ln(\mathrm{MCSR}\;[\mathrm{min}^{-1}])$')
     
     # Set x-axis ticks to show inverse temperature values
     tick_positions = [1 / (temp + 273.15) for temp in [525, 550, 575, 600]]
@@ -1918,9 +1983,9 @@ def plot_manual_delta_t_extraction(edge_buffer=22, save_fig=True, display=False)
             data = load_manual_data_sheet(temp)
             if data is not None:
                 
-                # Fix corrupted time column for 600Â°C file
+                # Fix corrupted time column for 600°C file
                 if temp == 600:
-                    # The 600Â°C file has corrupted time data - reconstruct it
+                    # The 600°C file has corrupted time data - reconstruct it
                     time_col = data.columns[0]
                     data[time_col] = range(len(data))  # 0 to 449 minutes
                 
@@ -1929,7 +1994,7 @@ def plot_manual_delta_t_extraction(edge_buffer=22, save_fig=True, display=False)
                 time_data = data[time_col].values
                 
                 # Get strain columns and apply exact paper methodology filtering
-                all_strain_cols = [col for col in data.columns if col.startswith('E') or col.startswith('Î”T')]
+                all_strain_cols = [col for col in data.columns if col.startswith('E') or col.startswith('ΔT')]
                 
                 # Get the correct columns according to paper methodology
                 correct_columns = get_manual_data_columns_by_temperature(temp)
@@ -1942,7 +2007,7 @@ def plot_manual_delta_t_extraction(edge_buffer=22, save_fig=True, display=False)
                     if base_col_name in correct_columns:
                         strain_cols.append(col)
                 
-                # Filter out columns with no valid data (like E39 in 600Â°C)
+                # Filter out columns with no valid data (like E39 in 600°C)
                 valid_strain_cols = []
                 for col in strain_cols:
                     strain_data = data[col].values
@@ -1971,7 +2036,7 @@ def plot_manual_delta_t_extraction(edge_buffer=22, save_fig=True, display=False)
                            markerfacecolor='white', markeredgecolor='black', markeredgewidth=0.5 * SCALING_FACTOR)
                     
         except Exception as e:
-            print(f"Error loading manual data for {temp}Â°C: {e}")
+            print(f"Error loading manual data for {temp}°C: {e}")
             continue
     
     # Set labels and formatting (same as creep strain curves)
@@ -2105,61 +2170,76 @@ def main():
     # Load the CCT data once.
     cct_data = load_cct_data()
     edge_buffers = list(SOURCE_DATA_EDGE_BUFFERS)
+    failures = []
     try:
         plot_arrhenius(edge_buffers, save_fig=True)
         save_arrhenius_data(edge_buffers)
     except Exception as e:
         print("Error in Arrhenius analysis:", e)
+        failures.append("Error in Arrhenius analysis:")
     try:
         plot_cov_vs_temperature(edge_buffer=22, save_fig=True)
         save_cov_data(edge_buffer=22)
     except Exception as e:
         print("Error in COV vs Temperature analysis:", e)
+        failures.append("Error in COV vs Temperature analysis:")
     try:
         plot_activation_energy_vs_buffer(max_buffer=24, save_fig=True)
         save_activation_energy_data(max_buffer=24)
     except Exception as e:
         print("Error in Activation Energy vs Buffer analysis:", e)
+        failures.append("Error in Activation Energy vs Buffer analysis:")
     try:
         plot_creep_curves(edge_buffer=22, save_fig=True, cct_data=cct_data)
         plot_creep_curves_v2(edge_buffer=22, save_fig=True, cct_data=cct_data)
         save_creep_curves_data(edge_buffer=22)
     except Exception as e:
         print("Error in Creep Curves analysis:", e)
+        failures.append("Error in Creep Curves analysis:")
     try:
         plot_all_delta_t_creep_curves(save_fig=True)
     except Exception as e:
         print("Error in All Delta T Creep Curves plot:", e)
+        failures.append("Error in All Delta T Creep Curves plot:")
     try:
         plot_temperature_groups(save_fig=True)
     except Exception as e:
         print("Error in Temperature Groups plot:", e)
+        failures.append("Error in Temperature Groups plot:")
     try:
         plot_arrhenius_spatial_stress_effects(edge_buffers, save_fig=True)
     except Exception as e:
         print("Error in Spatial Stress Effects plot:", e)
+        failures.append("Error in Spatial Stress Effects plot:")
     try:
         calculate_activation_energy(edge_buffer=22)
     except Exception as e:
         print("Error in activation energy calculation:", e)
+        failures.append("Error in activation energy calculation:")
     try:
         plot_all_techniques_comparison(edge_buffer=22, save_fig=True)
     except Exception as e:
         print("Error in all techniques comparison plot:", e)
+        failures.append("Error in all techniques comparison plot:")
     try:
         plot_arrhenius_with_spatial_coloring(edge_buffer=0, save_fig=True)
     except Exception as e:
         print("Error in spatial stress effects plot:", e)
+        failures.append("Error in spatial stress effects plot:")
     try:
         plot_manual_delta_t_extraction(edge_buffer=22, save_fig=True)
     except Exception as e:
         print("Error in manual Delta T extraction plot:", e)
+        failures.append("Error in manual Delta T extraction plot:")
     try:
         from src.pipeline.source_data_export import export_source_data_workbook
 
         export_source_data_workbook()
     except Exception as e:
         print("Source data export:", e)
+        failures.append("Source data export:")
+    if failures:
+        raise RuntimeError("Analysis failed in: " + "; ".join(failures))
     print("Analysis complete. All figures and data files generated.")
 
 def test_all_techniques_plot():

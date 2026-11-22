@@ -10,7 +10,7 @@ Generated figures live under `images/`. Align names with final published figure 
 | `images/activation_energy/activation_energy_vs_buffer.svg` | `plot_activation_energy_vs_buffer` |
 | `images/temperature_analysis/cov_vs_temperature.svg` | `plot_cov_vs_temperature` |
 | `images/creep_curves/creep_strain_curves.svg` | `plot_creep_curves` |
-| `images/creep_curves/creep_strain_curves_v2.svg` | `plot_creep_strain_curves_with_manual_data` |
+| `images/creep_curves/creep_strain_curves_v2.svg` | `plot_creep_curves_v2` |
 | `images/creep_curves/all_delta_t_creep_curves.svg` | `plot_all_delta_t_creep_curves` |
 | `images/temperature_analysis/temperature_groups.svg` | `plot_temperature_groups` |
 | `images/spatial_effects/arrhenius_spatial_stress_effects_buffer_*.svg` | `plot_arrhenius_spatial_stress_effects` |
@@ -35,6 +35,15 @@ Generated figures live under `images/`. Align names with final published figure 
 
 **Supplementary-style:** Supplementary Figure 1, Supplementary Figure 2, Supplementary Figure 3, Supplementary Table 1, Supplementary Table 2, Supplementary Table 3, Supplementary Table 4, Supplementary Table 5
 
+
+## Figure 6 conventional-test markers
+
+Figure 6(a) uses `creep_strain_curves.svg` and Figure 6(b) uses `creep_strain_curves_v2.svg`.
+Both panels plot the 550 °C conventional history relative to its minimum, adding
+0.00101063 mm/mm for the archived test. The other conventional histories retain
+their original plotting baseline. The `Figure6_CCT_markers` worksheet records the
+marker centers within the plotted time window, along with the source strain and
+baseline offset. This presentation adjustment does not enter the rate calculation.
 
 ## Source data bundle
 

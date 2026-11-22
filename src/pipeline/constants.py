@@ -7,6 +7,8 @@ ANALYSIS_START = 99
 ANALYSIS_END = 199
 SCALING_FACTOR = 1.0
 GAS_CONSTANT_J_PER_MOLK = 8.314
+FIGURE6_CCT_MARK_EVERY = (10, 20)
+FIGURE6_MAX_TIME_MIN = 450
 
 # Mixed workbook containing both CCT and manual Delta-T sheets.
 WORKBOOK_PATH = "data/raw/workbook/main.xlsx"
